@@ -1,0 +1,55 @@
+<!--
+    phpcs.xml — 程式碼風格檢查
+    對應 Harness Engineering 四層防禦 Layer 2：Lint + Type Check
+
+    安裝: composer require --dev squizlabs/php_codesniffer
+    檢查: vendor/bin/phpcs
+    修復: vendor/bin/phpcbf
+    CI:   vendor/bin/phpcs - -report=checkstyle
+-->
+<ruleset name="HarnessStandard">
+    <description>Harness Engineering PHP Coding Standard</description>
+
+    <!-- 掃描範圍 -->
+    <file>src</file>
+    <file>app</file>
+    <file>tests</file>
+
+    <!-- 排除 -->
+    <exclude-pattern>vendor/*</exclude-pattern>
+    <exclude-pattern>storage/*</exclude-pattern>
+    <exclude-pattern>bootstrap/cache/*</exclude-pattern>
+
+    <!-- 基準：PSR-12 -->
+    <rule ref="PSR12"/>
+
+    <!-- 禁止 var_dump / dd / dump（防止 debug 程式碼進 production） -->
+    <rule ref="Generic.PHP.ForbiddenFunctions">
+        <properties>
+            <property name="forbiddenFunctions" type="array">
+                <element key="var_dump" value="null"/>
+                <element key="dd" value="null"/>
+                <element key="dump" value="null"/>
+                <element key="print_r" value="null"/>
+                <element key="die" value="null"/>
+                <element key="exit" value="null"/>
+            </property>
+        </properties>
+    </rule>
+
+    <!-- 行長度限制：120 字元警告，150 字元錯誤 -->
+    <rule ref="Generic.Files.LineLength">
+        <properties>
+            <property name="lineLimit" value="120"/>
+            <property name="absoluteLineLimit" value="150"/>
+        </properties>
+    </rule>
+
+    <!-- 方法長度限制：超過 50 行警告（鼓勵拆分） -->
+    <rule ref="Generic.Metrics.CyclomaticComplexity">
+        <properties>
+            <property name="complexity" value="10"/>
+            <property name="absoluteComplexity" value="20"/>
+        </properties>
+    </rule>
+</ruleset>

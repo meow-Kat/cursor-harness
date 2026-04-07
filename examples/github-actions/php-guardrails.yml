@@ -1,0 +1,97 @@
+# php-guardrails.yml — PHP Architecture Guardrails Pipeline
+# 對應 Harness Engineering 三層防禦 L2：四層防禦（Test / Lint / CI Gate）
+#
+# 功能：
+#   Layer 1: PHPUnit 測試（邏輯正確性）
+#   Layer 2: PHPStan + PHPCS（型別安全 + 風格）
+#   Layer 3: Deptrac + PHPArkitect（架構約束）
+#
+# 使用方式：複製到 .github/workflows/php-guardrails.yml
+
+name: PHP Guardrails
+on:
+  pull_request:
+    paths:
+      - '**.php'
+      - 'composer.json'
+      - 'composer.lock'
+      - 'phpstan.neon'
+      - 'phpcs.xml'
+      - 'deptrac.yaml'
+      - 'phparkitect.php'
+
+jobs:
+  # Layer 2: Lint + Type Check（最快，先跑）
+  lint-and-types:
+    name: "L2: Lint + Type Check"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          tools: composer
+
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist
+
+      - name: PHPCS — coding standard
+        run: vendor/bin/phpcs --report=checkstyle
+
+      - name: PHPStan — static analysis
+        run: vendor/bin/phpstan analyse --error-format=github
+
+  # Layer 3: Architecture constraints
+  architecture:
+    name: "L3: Architecture Constraints"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          tools: composer
+
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist
+
+      - name: Deptrac — dependency direction
+        run: vendor/bin/deptrac analyse --report-uncovered --fail-on-uncovered
+
+      - name: PHPArkitect — architecture rules
+        run: vendor/bin/phparkitect check
+
+  # Layer 1: Tests（最慢，跟其他平行跑）
+  tests:
+    name: "L1: Tests"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          tools: composer
+          coverage: xdebug
+
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist
+
+      - name: PHPUnit
+        run: vendor/bin/phpunit --coverage-text --colors=never
+
+      - name: Coverage check
+        run: |
+          set -e
+          COVERAGE=$(vendor/bin/phpunit --coverage-text 2>/dev/null | grep 'Lines:' | awk '{print $2}' | tr -d '%')
+          echo "Coverage: ${COVERAGE}%"
+          # 覆蓋率不可低於基線（依專案調整）
+          # if (( $(echo "$COVERAGE < 80" | bc -l) )); then
+          #   echo "❌ Coverage dropped below 80%"
+          #   exit 1
+          # fi

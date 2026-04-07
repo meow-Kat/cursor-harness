@@ -1,0 +1,37 @@
+---
+description: Detect missing CI workflows and suggest Harness Engineering CI setup
+globs: "**/.github/**"
+alwaysApply: false
+---
+
+# CI Workflows Protocol
+
+When working in a project that uses GitHub Actions, ensure Harness Engineering CI workflows are in place.
+
+## 1. Detection
+
+When this rule activates (a `.github/` file is in context), check if the following workflows exist in `.github/workflows/`:
+
+- `risk-contract.yml` — risk-based review intensity
+- `php-guardrails.yml` — PHP architecture enforcement (only if PHP project)
+- `doc-freshness.yml` — documentation freshness and link validation
+
+## 2. Missing Workflows
+
+If **any** relevant workflows are missing:
+
+1. Note which workflows are missing in your response.
+2. Ask the user: "This project is missing CI harness workflows (<list missing>). Want me to set them up?"
+3. If the user agrees, use the `ci-workflows-template` skill to generate the missing workflows.
+4. After generating, remind the user to:
+   - Replace placeholder reviewer names
+   - Push a test PR to verify workflows trigger
+   - Set up branch protection rules
+
+## 3. Workflow-Aware Behavior
+
+When harness workflows exist, respect their constraints:
+
+- **risk-contract.yml**: When suggesting changes to `critical` paths (db/, infrastructure/, auth/, .github/workflows/), warn the user that these will trigger full CI + reviewer assignment.
+- **php-guardrails.yml**: When writing PHP code, note that it will be checked by phpstan, phpcs, deptrac, and phparkitect.
+- **doc-freshness.yml**: When updating docs/ or AGENTS.md, ensure links remain valid and content is current.

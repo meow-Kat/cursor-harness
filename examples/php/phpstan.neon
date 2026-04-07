@@ -1,0 +1,31 @@
+# phpstan.neon — 靜態分析設定
+# 對應 Harness Engineering 四層防禦 Layer 2：Lint + Type Check
+#
+# 安裝: composer require --dev phpstan/phpstan
+# 執行: vendor/bin/phpstan analyse
+# CI:   vendor/bin/phpstan analyse --error-format=github
+
+parameters:
+    # Level 9 = 最嚴格（含 mixed type 檢查）
+    # 建議從 level 5 開始，逐步提升
+    level: 6
+
+    paths:
+        - src
+        - app
+
+    excludePaths:
+        - vendor
+        - storage
+        - bootstrap/cache
+
+    # 自動載入 Laravel 的 IDE helper（如果有用 barryvdh/laravel-ide-helper）
+    # scanDirectories:
+    #     - vendor/barryvdh/laravel-ide-helper
+
+    # 忽略特定錯誤（謹慎使用，每條都要註明原因）
+    ignoreErrors:
+        # - '#Call to an undefined method Illuminate\\Database\\Eloquent\\Builder#'
+
+    # 強制回報未使用的 use statements
+    reportUnmatchedIgnoredErrors: true

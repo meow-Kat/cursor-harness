@@ -1,0 +1,123 @@
+# risk-contract.yml — Risk Contract Enforcer
+# 對應 Harness Engineering 三層防禦 L1：分級審查 + L3 Control Plane Step 1-2
+#
+# 功能：
+#   1. 讀取 risk-tiers.json，根據變更路徑判斷風險等級
+#   2. 依風險等級決定檢查強度（critical → 完整檢查 + 多人 review）
+#   3. 自動加標籤、指派 reviewer
+#
+# 使用方式：複製到 .github/workflows/risk-contract.yml
+
+name: Risk Contract Enforcer
+on: [pull_request]
+
+jobs:
+  evaluate-risk:
+    runs-on: ubuntu-latest
+    outputs:
+      risk_level: ${{ steps.assess.outputs.level }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Assess risk level from changed files
+        id: assess
+        run: |
+          set -e
+          CHANGED=$(git diff --name-only origin/main...HEAD)
+          LEVEL="low"
+
+          # 從高到低匹配，取最高風險等級
+          if echo "$CHANGED" | grep -qE '^(db/|infrastructure/|auth/|\.github/workflows/)'; then
+            LEVEL="critical"
+          elif echo "$CHANGED" | grep -qE '^(api/|payments/|src/core/|\.cursor/rules/)'; then
+            LEVEL="high"
+          elif echo "$CHANGED" | grep -qE '^(src/|app/|lib/)'; then
+            LEVEL="medium"
+          fi
+
+          echo "level=$LEVEL" >> "$GITHUB_OUTPUT"
+          echo "### Risk Assessment" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Level**: $LEVEL" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Changed files**: $(echo "$CHANGED" | wc -l | tr -d ' ')" >> "$GITHUB_STEP_SUMMARY"
+          echo "$CHANGED" | head -20 >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Label PR by risk level
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const level = '${{ steps.assess.outputs.level }}';
+            const labels = {
+              critical: ['risk:critical', 'needs-staging', 'needs-rollback-plan'],
+              high:     ['risk:high'],
+              medium:   ['risk:medium'],
+              low:      ['risk:low']
+            };
+
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              labels: labels[level] || ['risk:low']
+            });
+
+      - name: Request reviewers for critical changes
+        if: steps.assess.outputs.level == 'critical'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // 替換為你的團隊 reviewer
+            await github.rest.pulls.requestReviewers({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+              // team_reviewers: ['platform', 'security'],
+              reviewers: ['senior-engineer-1']
+            });
+
+  run-checks:
+    needs: evaluate-risk
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run checks based on risk level
+        run: |
+          set -e
+          LEVEL="${{ needs.evaluate-risk.outputs.risk_level }}"
+
+          case "$LEVEL" in
+            critical)
+              echo "🔴 Critical — Full test suite + security scan"
+              composer install --no-interaction
+              vendor/bin/phpstan analyse
+              vendor/bin/phpcs
+              vendor/bin/deptrac analyse
+              vendor/bin/phparkitect check
+              vendor/bin/phpunit
+              # vendor/bin/security-checker security:check  # 如果有安裝
+              ;;
+            high)
+              echo "🟠 High — Full test suite"
+              composer install --no-interaction
+              vendor/bin/phpstan analyse
+              vendor/bin/phpcs
+              vendor/bin/deptrac analyse
+              vendor/bin/phpunit
+              ;;
+            medium)
+              echo "🟡 Medium — Lint + type check + unit tests"
+              composer install --no-interaction
+              vendor/bin/phpstan analyse
+              vendor/bin/phpcs
+              vendor/bin/phpunit --testsuite=unit
+              ;;
+            low)
+              echo "🟢 Low — Lint only"
+              composer install --no-interaction
+              vendor/bin/phpcs
+              ;;
+          esac
+
+          echo "✅ All checks passed (risk level: $LEVEL)"

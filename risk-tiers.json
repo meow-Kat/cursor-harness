@@ -1,0 +1,22 @@
+{
+  "version": "1.0",
+  "description": "Risk tiers — classify file paths by blast radius to determine review intensity",
+  "tiers": {
+    "critical": {
+      "paths": ["db/", "infrastructure/", "auth/", ".github/workflows/"],
+      "guidance": "Warn user and require explicit confirmation before any modification."
+    },
+    "high": {
+      "paths": ["api/", "payments/", "src/core/", ".cursor/rules/"],
+      "guidance": "Note risk level in response. Proceed if task intent is clear."
+    },
+    "medium": {
+      "paths": ["src/", "app/", "lib/"],
+      "guidance": "Proceed normally. Mention if changes touch multiple modules."
+    },
+    "low": {
+      "paths": ["docs/", "tests/", "*.md", "*.test.*", "*.spec.*"],
+      "guidance": "Proceed without extra confirmation."
+    }
+  }
+}

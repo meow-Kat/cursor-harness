@@ -1,0 +1,140 @@
+# doc-freshness.yml — Documentation Freshness Check
+# 對應 Harness Engineering 失效模式一：Context Rot 的對策
+#
+# 功能：
+#   1. 檢查 docs/ 下超過 90 天未更新的文件
+#   2. 驗證 AGENTS.md 裡的連結是否都存在
+#   3. 檢查 risk-tiers.json 格式是否正確
+#
+# 使用方式：複製到 .github/workflows/doc-freshness.yml
+
+name: Doc Freshness Check
+on:
+  pull_request:
+    paths:
+      - 'docs/**'
+      - 'AGENTS.md'
+      - 'risk-tiers.json'
+  schedule:
+    # 每週一早上 9 點 (UTC) 自動掃描
+    - cron: '0 9 * * 1'
+
+jobs:
+  check-freshness:
+    name: "Check stale docs"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Find stale documents (>90 days)
+        run: |
+          set -e
+          echo "### Stale Document Check" >> "$GITHUB_STEP_SUMMARY"
+
+          STALE=$(find docs/ -name "*.md" -type f -exec sh -c '
+            LAST_COMMIT=$(git log -1 --format="%ci" -- "$1" 2>/dev/null)
+            if [ -n "$LAST_COMMIT" ]; then
+              DAYS_AGO=$(( ($(date +%s) - $(date -d "$LAST_COMMIT" +%s 2>/dev/null || date -j -f "%Y-%m-%d %H:%M:%S %z" "$LAST_COMMIT" +%s 2>/dev/null)) / 86400 ))
+              if [ "$DAYS_AGO" -gt 90 ]; then
+                echo "$1 ($DAYS_AGO days)"
+              fi
+            fi
+          ' _ {} \;)
+
+          if [ -n "$STALE" ]; then
+            echo "⚠️ Documents not updated in 90+ days:" >> "$GITHUB_STEP_SUMMARY"
+            echo "$STALE" | while read -r line; do
+              echo "- $line" >> "$GITHUB_STEP_SUMMARY"
+            done
+            echo ""
+            echo "::warning::Stale documents found. Review and update or mark as archived."
+          else
+            echo "✅ All documents are up to date." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+  check-links:
+    name: "Validate AGENTS.md links"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check internal links in AGENTS.md
+        run: |
+          set -e
+          echo "### AGENTS.md Link Validation" >> "$GITHUB_STEP_SUMMARY"
+          BROKEN=0
+
+          if [ ! -f "AGENTS.md" ]; then
+            echo "⚠️ AGENTS.md not found" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          # 提取 markdown 連結中的本地路徑
+          grep -oP '\[.*?\]\((?!http)(.*?)\)' AGENTS.md | \
+            grep -oP '\(([^)]+)\)' | tr -d '()' | \
+            while read -r link; do
+              if [ ! -e "$link" ]; then
+                echo "❌ Broken link: $link" >> "$GITHUB_STEP_SUMMARY"
+                BROKEN=1
+              fi
+            done
+
+          if [ "$BROKEN" -eq 0 ]; then
+            echo "✅ All links in AGENTS.md are valid." >> "$GITHUB_STEP_SUMMARY"
+          else
+            exit 1
+          fi
+
+  check-local-override:
+    name: "Verify .agents.local.md is gitignored"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check .agents.local.md safety
+        run: |
+          set -e
+          if [ -f ".agents.local.md" ]; then
+            if ! grep -q '\.agents\.local\.md' .gitignore 2>/dev/null; then
+              echo "::error::.agents.local.md exists but is NOT in .gitignore — personal overrides must not be committed"
+              exit 1
+            fi
+            echo "✅ .agents.local.md is properly gitignored"
+          else
+            echo "ℹ️ No .agents.local.md found (optional)"
+          fi
+
+  check-risk-tiers:
+    name: "Validate risk-tiers.json"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate JSON syntax
+        run: |
+          set -e
+          if [ ! -f "risk-tiers.json" ]; then
+            echo "⚠️ risk-tiers.json not found"
+            exit 0
+          fi
+
+          python3 -c "import json; json.load(open('risk-tiers.json'))" && \
+            echo "✅ risk-tiers.json is valid JSON" || \
+            { echo "❌ risk-tiers.json has invalid syntax"; exit 1; }
+
+      - name: Check required structure
+        run: |
+          set -e
+          python3 -c "
+          import json, sys
+          data = json.load(open('risk-tiers.json'))
+          required_tiers = ['critical', 'high', 'medium', 'low']
+          tiers = data.get('tiers', data)
+          missing = [t for t in required_tiers if t not in tiers]
+          if missing:
+              print(f'❌ Missing tiers: {missing}')
+              sys.exit(1)
+          print('✅ All required tiers present')
+          "

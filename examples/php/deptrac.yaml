@@ -1,0 +1,84 @@
+# deptrac.yaml — 分層依賴規則
+# 對應 Harness Engineering 元件 ②：Architecture Guardrails
+#
+# 安裝: composer require --dev qossmic/deptrac-shim
+# 執行: vendor/bin/deptrac analyse
+# CI:   vendor/bin/deptrac analyse --report-uncovered --fail-on-uncovered
+#
+# 核心原則：每一層只能往下依賴，不可反向 import。
+# 違反時 deptrac 會輸出錯誤訊息，agent 可直接讀取修復。
+
+deptrac:
+  paths:
+    - ./src
+
+  layers:
+    # Layer 1: Domain Models / Value Objects（最底層，不依賴任何人）
+    - name: Model
+      collectors:
+        - type: classLike
+          value: App\\Models\\.*
+
+    # Layer 2: Repository Interfaces & Implementations
+    - name: Repository
+      collectors:
+        - type: classLike
+          value: App\\Repositories\\.*
+
+    # Layer 3: Service / Use Case（業務邏輯）
+    - name: Service
+      collectors:
+        - type: classLike
+          value: App\\Services\\.*
+
+    # Layer 4: Controller / API（入口點）
+    - name: Controller
+      collectors:
+        - type: classLike
+          value: App\\Http\\Controllers\\.*
+
+    # Layer 5: Middleware / Infrastructure
+    - name: Infrastructure
+      collectors:
+        - type: classLike
+          value: App\\Http\\Middleware\\.*
+        - type: classLike
+          value: App\\Providers\\.*
+
+    # Config / Support
+    - name: Config
+      collectors:
+        - type: classLike
+          value: App\\Config\\.*
+
+  ruleset:
+    # Model 不依賴任何上層
+    Model: ~
+
+    # Config 只能依賴 Model
+    Config:
+      - Model
+
+    # Repository 可依賴 Model、Config
+    Repository:
+      - Model
+      - Config
+
+    # Service 可依賴 Repository、Model、Config
+    Service:
+      - Repository
+      - Model
+      - Config
+
+    # Controller 可依賴 Service、Model（不可直接用 Repository）
+    Controller:
+      - Service
+      - Model
+
+    # Infrastructure 可依賴所有層
+    Infrastructure:
+      - Controller
+      - Service
+      - Repository
+      - Model
+      - Config
