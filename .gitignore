@@ -1,0 +1,6 @@
+# Local-only / generated / sensitive-by-default
+
+# Analysis memory (keep local; do not commit)
+docs/ANALYSIS_MEM.md
+docs/ANALYSIS_SCRATCH.md
+
