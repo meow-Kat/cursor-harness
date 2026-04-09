@@ -1,247 +1,110 @@
-# Harness Engineering Framework
+# Harness Engineering for Cursor
 
-An engineering framework for helping AI agents ship code safely and reliably.
+A practical way to make Cursor-based AI development more reliable, reviewable, and controlled.
 
-> AI can write code, but it shouldn't ship to production by itself. That "shouldn't" needs to be enforced by system design, not human vigilance.
+> AI can generate code quickly. The hard part is creating a workflow that keeps the output safe, consistent, and maintainable.
 
-> 中文版請見 `docs/README_zh-TW.md`.
+> Guides: English `docs/USER_GUIDE.md` | Traditional Chinese `docs/USER_GUIDE_zh-TW.md`
 
-## What this is
+## Overview
 
-This repo is a **general-purpose Harness Engineering framework**: templates, rules, and examples you can fork and apply to your own projects. The core ideas are inspired by [Harness Engineering — architecture overview](https://ai-coding.wiselychen.com/harness-engineering-architecture-overview-ai-code-production-guardrails/).
+This repository packages a **Harness Engineering workflow built around Cursor**.
 
-Harness Engineering = building a system that controls and amplifies an agent's ability to deliver in agent-first development.
+Instead of relying on prompts alone, it gives Cursor agents a working environment with:
 
-**Core philosophy: Humans steer. Agents execute.**
+- explicit repo rules
+- path-based risk control
+- short-term and long-term memory
+- reusable skills and specialized subagents
+- example CI guardrails
 
-## What's included
+The goal is simple: help AI agents work inside a defined system, not in an unbounded chat.
 
-### Project layer (checked into every repo)
+## Why this exists
 
-| File | Purpose |
-|------|------|
-| `AGENTS.md` | Agent work contract (architecture principles, forbidden actions, risk tiers, testing requirements) |
-| `risk-tiers.json` | Machine-readable risk contract: classify paths by blast radius (critical/high/medium/low) |
-| `docs/ANALYSIS_MEM.md` | Long-term analysis memory (stable decisions, invariants, logs) |
-| `docs/ANALYSIS_SCRATCH.md` | Short-term analysis scratchpad (current task context, notes, lessons) |
-| `examples/php/` | PHP guardrail config examples (see below) |
-| `examples/github-actions/` | CI/CD workflow examples (see below) |
+Cursor is powerful, but raw agent autonomy can drift quickly:
 
-### Cursor layer (in `.cursor/`, ready after forking)
+- architecture gets inconsistent
+- risky paths are changed too casually
+- context is lost between sessions
+- review standards become unclear
 
-> You can also install these into `~/.cursor/` for cross-project reuse. The repo copy ensures forks work out of the box.
+This repo is an attempt to solve that by turning the repo itself into a control surface.
 
-| File | Type | Purpose |
-|------|------|------|
-| `.cursor/rules/agents-md-protocol.mdc` | Rule | Enforce loading `AGENTS.md`, forbidden actions, risk awareness, instruction priority |
-| `.cursor/rules/analysis-memory-protocol.mdc` | Rule | Two-tier analysis memory: wake & sync, taxonomy, feedback loop, freshness, GC |
-| `.cursor/rules/php-guardrails-protocol.mdc` | Rule | Recommend / enforce PHP guardrails when applicable |
-| `.cursor/rules/ci-workflows-protocol.mdc` | Rule | Recommend / enforce CI workflow setup when applicable |
-| `.cursor/skills/agents-md-template/SKILL.md` | Skill | Create `AGENTS.md` when missing (instruction priority + operational limits) |
-| `.cursor/skills/memory-templates/SKILL.md` | Skill | Create analysis memory files when missing |
-| `.cursor/skills/php-guardrails-template/SKILL.md` | Skill | Create PHP guardrail configs when missing |
-| `.cursor/skills/ci-workflows-template/SKILL.md` | Skill | Create CI workflow templates when missing |
-| `.cursor/agents/coder.md` | Subagent | Code-writing specialist (self-verification + circuit breaker) |
-| `.cursor/agents/tester.md` | Subagent | Test-writing specialist (Layer 1) |
-| `.cursor/agents/reviewer.md` | Subagent | Review / LLM judge (Layer 4) |
-| `.cursor/agents/memory-keeper.md` | Subagent | Memory management (taxonomy, freshness, GC, write safety) |
-| `.cursor/agents/observability.md` | Subagent | System audits (compliance, drift, risk exposure, operations health) |
-| `.cursor/agents/project-analyzer.md` | Subagent | Repo scanning, risk assessment, tech-debt inventory |
+## What you get
 
-## Architecture
+| Path | Purpose |
+|------|---------|
+| `AGENTS.md` | Project contract for AI agents |
+| `risk-tiers.json` | Risk classification by path |
+| `.cursor/rules/` | Cursor-specific enforcement rules |
+| `.cursor/skills/` | Reusable templates and setup helpers |
+| `.cursor/agents/` | Specialized subagents for coding, testing, review, memory, and audits |
+| `examples/php/` | PHP architecture guardrail examples |
+| `examples/github-actions/` | CI workflow examples |
+| `docs/` | Deeper docs and localized documentation |
 
-### Division of responsibilities
+## How it works in Cursor
 
-```
-AGENTS.md (tool-agnostic)    defines WHAT: the rules to follow
-Cursor rules (Cursor-specific) define HOW: how to load, enforce, and intercept
-```
+The intended flow is:
 
-### Instruction priority (low → high)
+1. Cursor loads repo rules and `AGENTS.md`.
+2. The agent checks memory and current task context.
+3. Risky paths are handled more carefully than low-risk paths.
+4. Work is done through constrained roles, templates, and checks.
+5. Stable outcomes are written back into project memory.
 
-```
-~/.cursor/rules/     → user-global rules (lowest)
-AGENTS.md            → repo-level contract (team-shared)
-.cursor/rules/       → repo-level Cursor rules (team-shared)
-.agents.local.md     → personal override (not version-controlled, highest)
-```
-
-### Execution order (each task)
-
-```
-① agents-md-protocol        → load `AGENTS.md` + `.agents.local.md` (if any)
-② analysis-memory-protocol  → load MEM (long-term) → load SCRATCH (short-term)
-③ execute the task
-④ progressive summary       → update SCRATCH periodically to avoid context loss
-⑤ wrap up                   → update SCRATCH → promote stable findings to MEM → update Pending
-```
-
-### Memory taxonomy (inspired by Claude Code M-system)
-
-Long-term memory (`Core Logic`) is categorized into four types, with strict boundaries on what to store:
-
-| Type | Store | Do not store |
-|------|--------|---------|
-| **Project** | decisions/constraints not derivable from code | code patterns, file paths, architecture analysis |
-| **User** | user preferences, habits, skill level | — |
-| **Feedback** | corrections and confirmations | — |
-| **Reference** | external pointers (URLs, issues) | copied content |
-
-### Automation
-
-| Mechanism | Trigger | Behavior |
-|------|---------|------|
-| **Circuit breaker** | same operation fails 3 times / same file edited 5+ times / scope > 10 files | stop and request an alternative approach |
-| **Progressive summary** | every ~5 substantive operations / major decisions / before risky changes | keep SCRATCH current to prevent context loss |
-| **Post-task check** | after each task | run quick checks; escalate to full audit on anomalies |
-| **Periodic audit** | every 5 tasks | full observability audit |
-| **Feedback loop** | agent is corrected or explicitly confirmed | record lessons/confirmations to avoid repeating mistakes |
-| **Freshness check** | Core Logic items older than threshold | mark as stale and verify against reality |
-| **Write safety** | before writing memory | scan for secrets and redact |
-| **Memory GC** | logs exceed limits | archive/summarize |
+In short: **human intent sets direction, repo rules shape execution, Cursor agents do the work**.
 
 ## Quick start
 
-### 1) Fork this repo
-
 ```bash
-git clone https://github.com/YOUR_USERNAME/harness.git my-project
-cd my-project
+git clone https://github.com/YOUR_USERNAME/cursor-harness.git
+cd cursor-harness
 ```
 
-### 2) Install the Cursor layer
+Then:
 
-This repo includes a complete `.cursor/` folder (rules, skills, subagents). Cursor will load the repo-local `.cursor/` config automatically.
+1. Edit `AGENTS.md` to match your team's rules and architecture.
+2. Edit `risk-tiers.json` to match your repo structure.
+3. Review `.cursor/rules/`, `.cursor/skills/`, and `.cursor/agents/`.
+4. Start a new Cursor session and work inside the provided workflow.
 
-Optionally, to reuse across projects, copy them to your global Cursor config:
+## Recommended customization
 
-```bash
-cp -r .cursor/rules/*.mdc ~/.cursor/rules/
-cp -r .cursor/skills/* ~/.cursor/skills/
-cp -r .cursor/agents/* ~/.cursor/agents/
-```
+Start with these files first:
 
-### 3) Customize the project layer
+- `AGENTS.md`
+- `risk-tiers.json`
+- `.cursor/rules/analysis-memory-protocol.mdc`
 
-1. Edit `AGENTS.md`: fill in your architecture principles and forbidden actions
-2. Edit `risk-tiers.json`: adapt path tiers to your repo layout
-3. Start a new Cursor session; the agent will load and acknowledge them
+Then add the examples you actually need:
 
-## PHP guardrail examples
+- PHP guardrails from `examples/php/`
+- CI workflows from `examples/github-actions/`
 
-`examples/php/` includes configs for four tools aligned with the layered defense approach:
+## Project philosophy
 
-| Tool | Layer | Purpose | Install |
-|------|----------|------|------|
-| **Deptrac** | Layer 3: CI gate | dependency direction checks across layers | `composer require --dev qossmic/deptrac-shim` |
-| **PHPArkitect** | Layer 3: CI gate | architecture rule tests (naming/structure) | `composer require --dev phparkitect/arkitect` |
-| **PHPStan** | Layer 2: type check | static analysis (level 0–9) | `composer require --dev phpstan/phpstan` |
-| **PHP_CodeSniffer** | Layer 2: lint | PSR-12 lint + forbid debug helpers | `composer require --dev squizlabs/php_codesniffer` |
+This repo follows a simple idea:
 
-### PHP layering example
+**Do not try to make the agent smarter only through prompting. Make the environment better instead.**
 
-```
-Model (bottom; depends on nobody)
-  ↑
-Config
-  ↑
-Repository
-  ↑
-Service
-  ↑
-Controller
-  ↑
-Infrastructure (top; can depend on all)
-```
+That means:
 
-Each layer may only depend on layers below it. Deptrac and PHPArkitect can enforce this mechanically in CI.
+- clearer constraints
+- smaller blast radius
+- reusable review logic
+- persistent memory
+- explicit operational limits
 
-## CI/CD workflow examples
+## Further reading
 
-`examples/github-actions/` includes three workflows aligned with the risk/layered defense model:
-
-| Workflow | Layer | What it does |
-|----------|---------|------|
-| `risk-contract.yml` | L1 risk tiering + control plane | classify changes by path risk; label; request review |
-| `php-guardrails.yml` | L2 layered defenses | parallel jobs: lint+type / architecture / tests |
-| `doc-freshness.yml` | anti context-rot | check stale docs; validate links; validate `risk-tiers.json` |
-
-Usage: copy the workflows you need into your repo’s `.github/workflows/`.
-
-## Subagent architecture
-
-This framework uses 6 specialized subagents, each with a single responsibility:
-
-```
-User instruction
-  │
-  ▼
-Main Agent (orchestrator)
-  │
-  ├── project-analyzer   "What does this repo look like?"     (understand)
-  ├── coder              "Write the code"                      (execute)
-  ├── tester             "Write tests for the change"          (verify L1)
-  ├── reviewer           "Review the change"                   (quality L4)
-  ├── memory-keeper      "Record what happened"                (memory)
-  └── observability      "Is the system healthy?"              (audit)
-```
-
-### Subagent overview
-
-| Subagent | Model | Mode | Component | Responsibility |
-|----------|-------|------|---------|------|
-| `project-analyzer` | opus | readonly | — | scan structure, risks, and tech debt |
-| `coder` | sonnet | read-write | — | implement changes and summarize |
-| `tester` | codex | read-write | Eval & test | write tests; verify coverage independently |
-| `reviewer` | codex | readonly | guardrails & safety | code review (LLM judge; Layer 4) |
-| `memory-keeper` | sonnet | read-write | context & feedback | memory taxonomy, freshness, GC, audit trail |
-| `observability` | opus | readonly | observability | compliance & drift audits; operations health |
-
-### Typical workflow
-
-```
-① coder implements      → produces a change summary
-② tester adds tests     → produces a test report
-③ reviewer judges       → produces a review report
-④ memory-keeper records → updates SCRATCH / MEM
-⑤ observability audits  → produces a health report (periodic or on-demand)
-```
-
-### Design principles
-
-- **One agent, one job**: coder doesn't test; tester doesn't implement; reviewer doesn't modify.
-- **Intentional context separation**: separate coder vs reviewer to reduce self-review bias.
-- **Single writer for memory**: only memory-keeper writes memory to avoid conflicts.
-- **Observability is read-only**: it audits and recommends; fixes are delegated.
-
-### Built-in safety mechanisms
-
-| Mechanism | Applies to | Notes |
-|------|-------------|------|
-| **Self-verification** | coder, tester | required checklist before producing output |
-| **Circuit breaker** | coder, tester | stop on repeated failure or runaway scope |
-| **Context exhaustion warning** | all 6 | keep outputs concise to avoid context rot |
-| **Operations health audit** | observability | audit operational limits & governance maturity |
-| **Audit trail** | memory-keeper | record major decisions with context & risks |
-
-## Mapping to the 7 Harness Engineering components
-
-| Component | Implementation in this repo | Status |
-|------|------------|------|
-| ① Context system | `AGENTS.md` + two-tier memory + knowledge base | ✅ |
-| ② Architecture guardrails | principles + `risk-tiers.json` + PHP examples | ✅ |
-| ③ Eval & test harness | testing requirements + CI examples | ✅ (baseline) |
-| ④ CI/PR automation | GitHub Actions examples | ✅ |
-| ⑤ Safety & policy | forbidden actions + risk tiers + enforcement | ✅ |
-| ⑥ Observability | `observability` subagent audits | ✅ |
-| ⑦ Feedback loops | feedback loop + freshness check + memory GC | ✅ |
-
-## References
-
-- [Harness Engineering 架構全景](https://ai-coding.wiselychen.com/harness-engineering-architecture-overview-ai-code-production-guardrails/) — Wisely Chen
-- [OpenAI — Harness Engineering](https://openai.com) — concept source
-- [Martin Fowler — Harness Engineering](https://martinfowler.com) — analysis
-- [AGENTS.md format](https://agents.md) — cross-tool standard
+- English user guide: `docs/USER_GUIDE.md`
+- Traditional Chinese user guide: `docs/README_zh-TW.md`
+- Analysis memory: `docs/ANALYSIS_MEM.md`
+- Working scratchpad: `docs/ANALYSIS_SCRATCH.md`
+- Harness Engineering reference: [Wisely Chen — architecture overview](https://ai-coding.wiselychen.com/harness-engineering-architecture-overview-ai-code-production-guardrails/)
+- Cross-tool standard: [AGENTS.md](https://agents.md)
 
 ## License
 
