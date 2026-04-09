@@ -154,8 +154,15 @@
 - **P1**: analysis-memory-protocol 新增 §3.0 Progressive Session Summary：漸進式維護 SCRATCH Current Context，每 ~5 次實質操作或重大決策時更新，防 crash 丟上下文（參考 Claude Code session_memory.md）。
 - **P2**: AGENTS.md 新增 `Instruction Priority` 段落，定義四層優先級（user-global → AGENTS.md → repo rules → .agents.local.md）。agents-md-protocol 同步支援 `.agents.local.md` 載入與衝突解決。
 
+### 2026-04-09 Framework-Aware Memory Init
+
+- memory-templates skill 新增 Framework Detection：init 記憶後自動掃描專案框架，生成 `.cursor/rules/project-framework.mdc`。
+- 內建 4 框架慣例模板（PHP/Laravel、JS/TS+Next.js/React、Python+Django/FastAPI、Go）+ unknown 骨架。
+- 取代為每個框架建獨立 skill/agent 的做法，一個偵測機制 + 一個 rule 檔案搞定。
+- analysis-memory-protocol、AGENTS.md、php-guardrails-protocol 同步更新。
+
 ## Pending
 
-- **Last action**: 記憶體系重構完成（P0-P2），參考 Claude Code 六維記憶。
-- **Next goal**: P3 AutoDream 跨 session 整合；或在實際專案測試重構後的記憶系統。
+- **Last action**: Framework-Aware Memory Init 完成。memory-templates skill 現在會自動偵測框架並生成 project-framework.mdc。
+- **Next goal**: 在實際專案測試 Framework Detection 流程；或擴充更多框架模板（Rust、Ruby/Rails）。
 

@@ -35,6 +35,7 @@ You are the analysis expert for this project. To overcome context loss with toke
   - If `docs/ANALYSIS_MEM.md` does not exist, create it from the Long-term template.
   - If `docs/ANALYSIS_SCRATCH.md` does not exist, create it from the Scratch template.
   - If a memory file exists but its structure is unrecognizable, follow the Recovery procedure in the skill.
+  - After creating memory files, run **Framework Detection** (see `memory-templates` skill §Framework Detection): auto-scan project files, generate `.cursor/rules/project-framework.mdc`, and record the framework in MEM.
 - **Align progress**: Check whether the current task connects to the `Pending` section(s).
 
 ## 2. Analysis Rules

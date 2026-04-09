@@ -2,10 +2,10 @@
 
 ## Current Context
 
-- Task: 記憶體系重構（參考 Claude Code 六維記憶）
-- Scope: ANALYSIS_MEM 結構 / memory-keeper / analysis-memory-protocol / memory-templates skill / AGENTS.md / agents-md-protocol / README
-- Status: 完成（P0-P2）
-- Key decisions: Core Logic 四類分類 / 正向 Feedback 機制 / 漸進式摘要 / 指令優先級階層 / .agents.local.md 支援 / Write Safety
+- Task: Framework-Aware Memory Init
+- Scope: memory-templates skill / analysis-memory-protocol / AGENTS.md / php-guardrails-protocol
+- Status: 完成
+- Key decisions: 自動偵測框架 + 生成 project-framework.mdc rule / 不為每個框架建獨立 skill/agent / 內建 4 框架模板（PHP、JS/TS、Python、Go）+ unknown 骨架
 
 ## Working Notes
 
@@ -85,4 +85,12 @@
 - P0: memory-templates skill 更新為四類結構
 - P1: analysis-memory-protocol 新增漸進式會話摘要（§3.0 Progressive Session Summary）
 - P2: AGENTS.md 新增指令優先級階層 + .agents.local.md 支援；agents-md-protocol 同步
+
+### 2026-04-09 Framework-Aware Memory Init
+
+- memory-templates skill 新增 Framework Detection：auto-scan → 生成 `project-framework.mdc` → 記錄至 MEM
+- 內建 4 框架模板（PHP/Laravel、JS/TS、Python、Go）+ unknown 骨架
+- analysis-memory-protocol First run 段落加入 Framework Detection 步驟
+- AGENTS.md 更新：Architecture Principles 指向 project-framework.mdc、Code Style 改為框架通用
+- php-guardrails-protocol 更新：定位改為「具體工具設定檔管理」，與 project-framework.mdc 互補
 
