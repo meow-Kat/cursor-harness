@@ -1,8 +1,26 @@
 name: review-write-ops
-description: Review write operations against AGENTS.md (Kiro only)
+description: Review write operations against AGENTS.md and risk tiers (Kiro only)
 event: preToolUse
 toolTypes:
   - write
 action:
   type: askAgent
-  prompt: "Check this write operation against AGENTS.md Forbidden Actions and risk-tiers.json. Verify: 1) Not touching critical paths without confirmation, 2) Not violating forbidden actions, 3) Within operational limits"
+  prompt: |
+    Quick risk check for this write operation:
+    
+    1. Check file path against risk-tiers.json:
+       - critical paths (db/, infrastructure/, auth/, .github/workflows/) → REQUIRE user confirmation
+       - high paths (api/, payments/, src/core/, .cursor/rules/) → NOTE risk level
+       - medium/low → proceed
+    
+    2. Check against AGENTS.md Forbidden Actions:
+       - Not deleting/overwriting memory files (ANALYSIS_MEM.md, ANALYSIS_SCRATCH.md)
+       - Not modifying files outside workspace
+       - Not committing secrets
+    
+    3. Check Operational Limits:
+       - Tool call count < 30
+       - Not editing same file 5+ times
+       - Scope < 10 files
+    
+    If all checks pass, proceed with EXACTLY the same tool parameters. If critical path, ask user first.

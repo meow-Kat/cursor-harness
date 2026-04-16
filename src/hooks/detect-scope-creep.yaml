@@ -1,0 +1,42 @@
+name: detect-scope-creep
+description: Detect scope creep (>10 file changes) and pause for confirmation
+event: preToolUse
+toolTypes:
+  - write
+action:
+  type: script
+  script: |
+    #!/bin/bash
+    set -euo pipefail
+    input=$(cat)
+    file_path=$(echo "$input" | jq -r '.file_path // .path // empty')
+    
+    [[ -z "$file_path" ]] && echo '{"permission": "allow", "continue": true}' && exit 0
+    
+    # Track modified files
+    MODIFIED_FILES=".harness-modified-files.tmp"
+    
+    # Add current file to list
+    if [[ -f "$MODIFIED_FILES" ]]; then
+      if ! grep -qF "$file_path" "$MODIFIED_FILES"; then
+        echo "$file_path" >> "$MODIFIED_FILES"
+      fi
+    else
+      echo "$file_path" > "$MODIFIED_FILES"
+    fi
+    
+    # Count unique files
+    file_count=$(wc -l < "$MODIFIED_FILES" | tr -d ' ')
+    
+    # Warn at thresholds (AGENTS.md: max 10 files)
+    if [[ $file_count -eq 8 ]]; then
+      echo '{"permission": "allow", "userMessage": "⚠️  Scope Creep: 8 files modified (limit: 10)", "continue": true}'
+      exit 0
+    elif [[ $file_count -ge 10 ]]; then
+      echo '{"permission": "ask", "userMessage": "🛑 Scope Creep: 10+ files modified. Confirm scope expansion?", "continue": true}'
+      exit 0
+    fi
+    
+    # Allow write
+    echo '{"permission": "allow", "continue": true}'
+    exit 0

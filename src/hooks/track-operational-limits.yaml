@@ -1,0 +1,36 @@
+name: track-operational-limits
+description: Track operational limits and warn before hitting circuit breaker
+event: beforeShellExecution
+action:
+  type: script
+  script: |
+    #!/bin/bash
+    set -euo pipefail
+    
+    # Track tool calls in temp file
+    COUNTER_FILE=".harness-tool-count.tmp"
+    
+    # Increment counter
+    if [[ -f "$COUNTER_FILE" ]]; then
+      count=$(cat "$COUNTER_FILE")
+      count=$((count + 1))
+    else
+      count=1
+    fi
+    echo "$count" > "$COUNTER_FILE"
+    
+    # Warn at thresholds (AGENTS.md: max 30 tool calls)
+    if [[ $count -eq 20 ]]; then
+      echo '{"permission": "allow", "userMessage": "⚠️  Operational Limit: 20/30 tool calls used", "continue": true}'
+      exit 0
+    elif [[ $count -eq 25 ]]; then
+      echo '{"permission": "allow", "userMessage": "⚠️  Operational Limit: 25/30 tool calls used (approaching limit)", "continue": true}'
+      exit 0
+    elif [[ $count -ge 30 ]]; then
+      echo '{"permission": "ask", "userMessage": "🛑 Circuit Breaker: 30 tool calls reached. Summarize progress and confirm continuation?", "continue": true}'
+      exit 0
+    fi
+    
+    # Allow command
+    echo '{"permission": "allow", "continue": true}'
+    exit 0

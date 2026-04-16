@@ -1,13 +1,25 @@
 name: task-complete
-description: Log task completion to harness log file
+description: Post-task check and memory update trigger
 event: stop
 action:
   type: script
   script: |
     #!/bin/bash
+    set -euo pipefail
     input=$(cat)
-    status=$(echo "$input" | jq -r '.status')
-    conversation_id=$(echo "$input" | jq -r '.conversation_id')
+    status=$(echo "$input" | jq -r '.status // "unknown"')
+    conversation_id=$(echo "$input" | jq -r '.conversation_id // "unknown"')
     
-    echo "[$(date)] Task $conversation_id completed: $status" >> .harness-log.txt
+    # Log completion
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] Task $conversation_id completed: $status" >> .harness-log.txt
+    
+    # Trigger post-task check (Kiro only - Cursor doesn't support askAgent in stop hook)
+    # For Cursor, this reminder is shown in the log
+    if [[ "$status" == "completed" ]]; then
+      echo "✓ Task completed. Remember to run Core Protocol §4 Post-Task Check:" >> .harness-log.txt
+      echo "  1. Update SCRATCH > Recent Tasks" >> .harness-log.txt
+      echo "  2. Update MEM > Pending" >> .harness-log.txt
+      echo "  3. Check operational limits" >> .harness-log.txt
+    fi
+    
     exit 0

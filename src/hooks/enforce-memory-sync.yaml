@@ -2,7 +2,8 @@ name: enforce-memory-sync
 description: Enforce memory sync at task start (Kiro preToolUse hook)
 event: preToolUse
 toolTypes:
-  - "*"
+  - write
+  - shell
 action:
   type: askAgent
   prompt: |
@@ -15,6 +16,6 @@ action:
     5. Have you output [Memory Sync] confirmation block? (yes/no)
     
     If ANY answer is "no", STOP and complete §1 Task Start first.
-    If ALL answers are "yes", proceed with the tool call.
+    If ALL answers are "yes", proceed with the tool call using EXACTLY the same parameters.
     
-    This hook only triggers on the FIRST tool use in a conversation. After confirmation, it will not trigger again.
+    CRITICAL: This is a preToolUse hook. Do NOT trigger additional hooks by calling read tools. Only verify memory sync status and proceed.

@@ -1,0 +1,20 @@
+name: check-stale-memory
+description: Detect stale memory entries (>30 days) at task start (Kiro only)
+event: preToolUse
+toolTypes:
+  - read
+action:
+  type: askAgent
+  prompt: |
+    FRESHNESS CHECK: If this is your FIRST read operation in this conversation:
+    
+    1. Check `docs/ANALYSIS_MEM.md > Core Logic` for entries marked with dates
+    2. If any entry is >30 days old without recent verification:
+       - Mark it as `[Stale?]` in your mental note
+       - After completing the main task, ask user: "Found stale memory entries (>30 days). Verify or remove?"
+    
+    3. Proceed with the current read operation
+    
+    If NOT the first read, proceed directly.
+    
+    This implements Core Protocol §5 Freshness Check.

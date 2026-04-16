@@ -5,18 +5,37 @@ action:
   type: script
   script: |
     #!/bin/bash
+    set -euo pipefail
     input=$(cat)
-    command=$(echo "$input" | jq -r '.command')
+    command=$(echo "$input" | jq -r '.command // empty')
     
     # Block database deletion/recreation
-    if echo "$command" | grep -qE '(DROP\s+(DATABASE|TABLE)|migrate:(fresh|reset)|db:reset)'; then
-      echo '{"permission": "deny", "userMessage": "❌ Blocked: Database deletion forbidden (AGENTS.md)", "continue": false}'
+    if echo "$command" | grep -qE '(DROP\s+(DATABASE|TABLE)|migrate:(fresh|reset)|db:reset|db:wipe)'; then
+      echo '{"permission": "deny", "userMessage": "❌ Blocked: Database deletion forbidden (AGENTS.md §Forbidden Actions)", "continue": false}'
       exit 0
     fi
     
     # Block infrastructure deletion
-    if echo "$command" | grep -qE '(terraform\s+destroy|kubectl\s+delete)'; then
-      echo '{"permission": "deny", "userMessage": "❌ Blocked: Infrastructure deletion forbidden", "continue": false}'
+    if echo "$command" | grep -qE '(terraform\s+destroy|kubectl\s+delete|docker\s+system\s+prune)'; then
+      echo '{"permission": "deny", "userMessage": "❌ Blocked: Infrastructure deletion forbidden (AGENTS.md §Forbidden Actions)", "continue": false}'
+      exit 0
+    fi
+    
+    # Block external dependency installation without approval
+    if echo "$command" | grep -qE '(npm\s+install|yarn\s+add|composer\s+require|pip\s+install)' && ! echo "$command" | grep -qE '(--dry-run|--help)'; then
+      echo '{"permission": "ask", "userMessage": "⚠️  Adding external dependency. Confirm?", "continue": true}'
+      exit 0
+    fi
+    
+    # Block memory file deletion
+    if echo "$command" | grep -qE 'rm.*ANALYSIS_(MEM|SCRATCH)\.md'; then
+      echo '{"permission": "deny", "userMessage": "❌ Blocked: Memory file deletion forbidden (AGENTS.md §Forbidden Actions)", "continue": false}'
+      exit 0
+    fi
+    
+    # Warn on critical path access
+    if echo "$command" | grep -qE '(db/|infrastructure/|auth/|\.github/workflows/)'; then
+      echo '{"permission": "ask", "userMessage": "⚠️  Accessing critical path (risk-tiers.json). Confirm?", "continue": true}'
       exit 0
     fi
     

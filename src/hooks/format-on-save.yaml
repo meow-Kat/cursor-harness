@@ -1,21 +1,39 @@
 name: format-on-save
-description: Auto-format code files on save (PHP with phpcs, TS/JS with prettier)
+description: Auto-format and lint code files after edit
 event: afterFileEdit
 action:
   type: script
   script: |
     #!/bin/bash
+    set -euo pipefail
     input=$(cat)
-    file_path=$(echo "$input" | jq -r '.file_path')
+    file_path=$(echo "$input" | jq -r '.file_path // empty')
     
-    # PHP: run phpcs
-    if [[ "$file_path" == *.php ]] && command -v vendor/bin/phpcs &> /dev/null; then
-      vendor/bin/phpcs --standard=phpcs.xml "$file_path" 2>/dev/null || true
+    [[ -z "$file_path" ]] && exit 0
+    
+    # PHP: run phpcs if available
+    if [[ "$file_path" == *.php ]]; then
+      if command -v vendor/bin/phpcs &> /dev/null; then
+        if ! vendor/bin/phpcs --standard=phpcs.xml "$file_path" 2>&1; then
+          echo "⚠️  phpcs found issues in $file_path" >&2
+        fi
+      fi
     fi
     
-    # TypeScript/JavaScript: run prettier
-    if [[ "$file_path" =~ \.(ts|tsx|js|jsx)$ ]] && command -v npx &> /dev/null; then
-      npx prettier --write "$file_path" 2>/dev/null || true
+    # TypeScript/JavaScript: run prettier if available
+    if [[ "$file_path" =~ \.(ts|tsx|js|jsx)$ ]]; then
+      if command -v npx &> /dev/null; then
+        if ! npx prettier --write "$file_path" 2>&1; then
+          echo "⚠️  prettier failed for $file_path" >&2
+        fi
+      fi
+    fi
+    
+    # Python: run black if available
+    if [[ "$file_path" == *.py ]]; then
+      if command -v black &> /dev/null; then
+        black "$file_path" 2>&1 || echo "⚠️  black failed for $file_path" >&2
+      fi
     fi
     
     exit 0

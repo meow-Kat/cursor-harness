@@ -1,0 +1,22 @@
+name: progressive-context-save
+description: Auto-remind to update SCRATCH Current Context every ~5 operations (Kiro only)
+event: preToolUse
+toolTypes:
+  - write
+action:
+  type: askAgent
+  prompt: |
+    PROGRESSIVE SAVE CHECK: Count your tool calls in this conversation.
+    
+    If you have made ~5+ substantive operations (writes, major decisions, risky actions) since last SCRATCH update:
+    
+    1. Briefly update `docs/ANALYSIS_SCRATCH.md > Current Context` with:
+       - Current task status
+       - Key decisions made so far
+       - Next steps
+    
+    2. Then proceed with the current tool call
+    
+    If < 5 operations, proceed directly with the tool call.
+    
+    This prevents losing context on crash/timeout (Core Protocol §4.1).
