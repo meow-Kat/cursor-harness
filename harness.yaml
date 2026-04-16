@@ -1,0 +1,344 @@
+# Harness Engineering Unified Configuration
+# Compile to Cursor and Kiro formats using: node tools/harness-compiler.js compile
+
+version: "1.0"
+
+# ============================================================================
+# Rules / Steering Files
+# ============================================================================
+
+rules:
+  - name: core-protocol
+    description: Core agent protocol - task lifecycle, delegation, memory, constraints
+    inclusion: always
+    content: |
+      # Core Protocol
+      
+      Unified protocol for task start, execution, constraints, and completion.
+      
+      ## §1 Task Start
+      
+      Execute in order: AGENTS.md → Memory → Blank Check
+      
+      ### 1.1 Load AGENTS.md
+      
+      1. Check `AGENTS.md` in repo root
+      2. Check `.agents.local.md` (personal override)
+      3. Output acknowledgement
+      
+      ### 1.2 Memory Sync
+      
+      1. Read `docs/ANALYSIS_MEM.md` (long-term)
+      2. Read `docs/ANALYSIS_SCRATCH.md` (short-term)
+      3. First run: use `memory-templates` skill
+      
+      ## §2 Execution Rules
+      
+      Orchestrate only. Delegate specialized work to subagents.
+      
+      ## §3 Constraints
+      
+      - Forbidden Actions from AGENTS.md
+      - Risk Awareness from risk-tiers.json
+      - Operational Limits (Circuit Breaker)
+
+  - name: php-guardrails
+    description: PHP project guardrails awareness
+    inclusion: fileMatch
+    fileMatchPattern: "**/*.php"
+    content: |
+      # PHP Guardrails Protocol
+      
+      When working in PHP project, ensure architecture guardrails in place.
+      
+      ## 1. Detection
+      
+      Check if guardrail configs exist:
+      - `deptrac.yaml`
+      - `phparkitect.php`
+      - `phpstan.neon`
+      - `phpcs.xml`
+      
+      ## 2. Missing Guardrails
+      
+      If missing, ask to set up using `php-guardrails-template` skill.
+      
+      ## 3. Guardrail-Aware Coding
+      
+      - Follow deptrac layers
+      - Pass PHPStan level
+      - Follow PHPCS standard
+      - No forbidden functions (var_dump, dd, dump, die, exit)
+
+  - name: ci-workflows
+    description: GitHub Actions workflow awareness
+    inclusion: fileMatch
+    fileMatchPattern: "**/.github/**"
+    content: |
+      # CI Workflows Protocol
+      
+      Ensure Harness Engineering CI workflows in place.
+      
+      ## 1. Detection
+      
+      Check if workflows exist:
+      - `risk-contract.yml`
+      - `php-guardrails.yml` (PHP projects)
+      - `doc-freshness.yml`
+      
+      ## 2. Missing Workflows
+      
+      If missing, ask to set up using `ci-workflows-template` skill.
+
+# ============================================================================
+# Hooks
+# ============================================================================
+
+hooks:
+  - name: check-forbidden-actions
+    description: Block commands violating AGENTS.md Forbidden Actions
+    event: beforeShellExecution  # Maps to: Cursor beforeShellExecution, Kiro preToolUse
+    action:
+      type: script
+      script: |
+        #!/bin/bash
+        input=$(cat)
+        command=$(echo "$input" | jq -r '.command')
+        
+        # Block database deletion/recreation
+        if echo "$command" | grep -qE '(DROP\s+(DATABASE|TABLE)|migrate:(fresh|reset)|db:reset)'; then
+          echo '{"permission": "deny", "userMessage": "❌ Blocked: Database deletion forbidden (AGENTS.md)", "continue": false}'
+          exit 0
+        fi
+        
+        # Block infrastructure deletion
+        if echo "$command" | grep -qE '(terraform\s+destroy|kubectl\s+delete)'; then
+          echo '{"permission": "deny", "userMessage": "❌ Blocked: Infrastructure deletion forbidden", "continue": false}'
+          exit 0
+        fi
+        
+        # Allow command
+        echo '{"permission": "allow", "continue": true}'
+        exit 0
+
+  - name: format-on-save
+    description: Auto-format files after edit
+    event: afterFileEdit  # Maps to: Cursor afterFileEdit, Kiro fileEdited
+    action:
+      type: script
+      script: |
+        #!/bin/bash
+        input=$(cat)
+        file_path=$(echo "$input" | jq -r '.file_path')
+        
+        # PHP: run phpcs
+        if [[ "$file_path" == *.php ]] && command -v vendor/bin/phpcs &> /dev/null; then
+          vendor/bin/phpcs --standard=phpcs.xml "$file_path" 2>/dev/null || true
+        fi
+        
+        # TypeScript/JavaScript: run prettier
+        if [[ "$file_path" =~ \.(ts|tsx|js|jsx)$ ]] && command -v npx &> /dev/null; then
+          npx prettier --write "$file_path" 2>/dev/null || true
+        fi
+        
+        exit 0
+
+  - name: task-complete
+    description: Log task completion
+    event: stop  # Maps to: Cursor stop, Kiro postTaskExecution
+    action:
+      type: script
+      script: |
+        #!/bin/bash
+        input=$(cat)
+        status=$(echo "$input" | jq -r '.status')
+        conversation_id=$(echo "$input" | jq -r '.conversation_id')
+        
+        echo "[$(date)] Task $conversation_id completed: $status" >> .harness-log.txt
+        exit 0
+
+  - name: review-write-ops
+    description: Review write operations against AGENTS.md (Kiro only - uses askAgent)
+    event: preToolUse
+    toolTypes: ["write"]
+    action:
+      type: askAgent
+      prompt: "Check this write operation against AGENTS.md Forbidden Actions and risk-tiers.json. Verify: 1) Not touching critical paths without confirmation, 2) Not violating forbidden actions, 3) Within operational limits"
+
+  - name: lint-php-on-save
+    description: Lint PHP files on save (Kiro only - uses runCommand)
+    event: fileEdited
+    patterns: ["*.php"]
+    action:
+      type: runCommand
+      command: "vendor/bin/phpcs --standard=phpcs.xml"
+      timeout: 30
+
+# ============================================================================
+# Agents
+# ============================================================================
+
+agents:
+  - name: coder
+    model: claude-4.6-sonnet-medium-thinking
+    description: Coding agent - writes code within AGENTS.md constraints
+    content: |
+      You are the "coder agent" for Harness Engineering.
+      
+      ## Core Principles
+      
+      1. Execute, don't plan
+      2. Respect boundaries (AGENTS.md, risk-tiers.json)
+      3. Minimal blast radius
+      4. Structured output (Change Summary)
+      5. No memory, no review
+      
+      ## Before Writing Code
+      
+      1. Read `AGENTS.md`
+      2. Read `risk-tiers.json`
+      3. If touching critical path, confirm first
+      
+      ## Output Format
+      
+      ```
+      ## Change Summary
+      
+      ### Files Changed
+      | File | Action | Risk | Description |
+      
+      ### Risk Assessment
+      - Highest risk: <level>
+      - Critical paths touched: yes/no
+      
+      ### Test Suggestions
+      - Scenarios to test: <list>
+      ```
+
+  - name: tester
+    model: gpt-5.3-codex
+    description: Testing agent - writes tests and validates coverage
+    content: |
+      You are the "tester agent" for Harness Engineering.
+      
+      ## Core Principles
+      
+      1. Tests are the hardest guardrail
+      2. Independent from coder
+      3. Every incident → one test case
+      4. Structured output (Test Report)
+      
+      ## Testing Strategy
+      
+      Priority: Critical/high risk paths → Business logic → Edge cases → Integration
+      
+      ## Output Format
+      
+      ```
+      ## Test Report
+      
+      ### Tests Added/Modified
+      | Test File | Count | Covers | Type |
+      
+      ### Coverage Analysis
+      - Scenarios covered: <list>
+      - Known uncovered risks: <list>
+      ```
+
+  - name: reviewer
+    model: gpt-5.3-codex
+    description: Code review agent - LLM Judge (Layer 4 defense)
+    content: |
+      You are the "reviewer agent" - Layer 4: LLM Judge.
+      
+      ## Core Principles
+      
+      1. Independent judge
+      2. Contract-based (reference AGENTS.md)
+      3. Prioritized (P0-P3)
+      4. Actionable
+      5. Clear verdict (approve/conditional/block)
+      
+      ## Review Checklist
+      
+      - Architecture compliance
+      - Forbidden actions
+      - Code quality
+      - Security
+      - Test coverage
+      
+      ## Output Format
+      
+      ```
+      ## Review Report
+      
+      ### Overview
+      - Verdict: PASS / CONDITIONAL / BLOCK
+      
+      ### Findings
+      | # | Severity | Type | File:Line | Issue | Fix |
+      ```
+
+# ============================================================================
+# Skills
+# ============================================================================
+
+skills:
+  - name: agents-md-template
+    description: Bootstrap or repair AGENTS.md
+    files:
+      - path: SKILL.md
+        content: |
+          ---
+          name: agents-md-template
+          description: Provide universal AGENTS.md template
+          ---
+          
+          # AGENTS.md Template
+          
+          ## When to Use
+          
+          - AGENTS.md missing or corrupted
+          - Bootstrapping Harness Engineering
+          
+          ## Template
+          
+          Create `AGENTS.md` in repo root with:
+          - Architecture Principles
+          - Forbidden Actions
+          - Risk Tiers
+          - Operational Limits
+          - Testing Requirements
+          - Code Style
+          - Knowledge Base
+
+  - name: memory-templates
+    description: Create memory system and detect framework
+    files:
+      - path: SKILL.md
+        content: |
+          ---
+          name: memory-templates
+          description: Two-tier memory system + framework detection
+          ---
+          
+          # Memory Templates
+          
+          ## When to Use
+          
+          - Memory files missing
+          - First run
+          - Framework detection needed
+          
+          ## Creates
+          
+          1. `docs/ANALYSIS_MEM.md` (long-term)
+          2. `docs/ANALYSIS_SCRATCH.md` (short-term)
+          3. `.cursor/rules/project-framework.mdc` or `.kiro/steering/project-framework.md`
+          
+          ## Framework Detection
+          
+          Auto-detect from:
+          - `composer.json` → PHP/Laravel
+          - `package.json` → JS/TS/Next.js
+          - `pyproject.toml` → Python/Django

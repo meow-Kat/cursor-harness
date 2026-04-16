@@ -1,0 +1,21 @@
+name: format-on-save
+description: Auto-format code files on save (PHP with phpcs, TS/JS with prettier)
+event: afterFileEdit
+action:
+  type: script
+  script: |
+    #!/bin/bash
+    input=$(cat)
+    file_path=$(echo "$input" | jq -r '.file_path')
+    
+    # PHP: run phpcs
+    if [[ "$file_path" == *.php ]] && command -v vendor/bin/phpcs &> /dev/null; then
+      vendor/bin/phpcs --standard=phpcs.xml "$file_path" 2>/dev/null || true
+    fi
+    
+    # TypeScript/JavaScript: run prettier
+    if [[ "$file_path" =~ \.(ts|tsx|js|jsx)$ ]] && command -v npx &> /dev/null; then
+      npx prettier --write "$file_path" 2>/dev/null || true
+    fi
+    
+    exit 0

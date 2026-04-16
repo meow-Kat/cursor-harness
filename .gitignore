@@ -1,6 +1,20 @@
-# Local-only / generated / sensitive-by-default
+# Node
+node_modules/
+package-lock.json
 
-# Analysis memory (keep local; do not commit)
-docs/ANALYSIS_MEM.md
-docs/ANALYSIS_SCRATCH.md
+# Compiled output (generated from src/ by harness-compiler.js)
+.cursor/
+.kiro/
 
+# IDE
+.DS_Store
+.vscode/
+.idea/
+
+# Logs
+*.log
+.harness-log.txt
+.cursor/hooks/task-log.txt
+
+# Local overrides
+.agents.local.md

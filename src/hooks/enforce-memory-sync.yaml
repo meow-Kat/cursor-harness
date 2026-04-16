@@ -1,0 +1,20 @@
+name: enforce-memory-sync
+description: Enforce memory sync at task start (Kiro preToolUse hook)
+event: preToolUse
+toolTypes:
+  - "*"
+action:
+  type: askAgent
+  prompt: |
+    BLOCKING CHECK: Before proceeding with this tool call, verify you have completed Core Protocol §1 Task Start:
+    
+    1. Have you read AGENTS.md in full? (yes/no)
+    2. Have you read docs/ANALYSIS_MEM.md in full? (yes/no)
+    3. Have you read docs/ANALYSIS_SCRATCH.md in full? (yes/no)
+    4. Have you output [AGENTS.md Loaded] confirmation block? (yes/no)
+    5. Have you output [Memory Sync] confirmation block? (yes/no)
+    
+    If ANY answer is "no", STOP and complete §1 Task Start first.
+    If ALL answers are "yes", proceed with the tool call.
+    
+    This hook only triggers on the FIRST tool use in a conversation. After confirmation, it will not trigger again.

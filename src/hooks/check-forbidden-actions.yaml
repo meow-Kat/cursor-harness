@@ -1,0 +1,25 @@
+name: check-forbidden-actions
+description: Block commands violating AGENTS.md Forbidden Actions
+event: beforeShellExecution
+action:
+  type: script
+  script: |
+    #!/bin/bash
+    input=$(cat)
+    command=$(echo "$input" | jq -r '.command')
+    
+    # Block database deletion/recreation
+    if echo "$command" | grep -qE '(DROP\s+(DATABASE|TABLE)|migrate:(fresh|reset)|db:reset)'; then
+      echo '{"permission": "deny", "userMessage": "❌ Blocked: Database deletion forbidden (AGENTS.md)", "continue": false}'
+      exit 0
+    fi
+    
+    # Block infrastructure deletion
+    if echo "$command" | grep -qE '(terraform\s+destroy|kubectl\s+delete)'; then
+      echo '{"permission": "deny", "userMessage": "❌ Blocked: Infrastructure deletion forbidden", "continue": false}'
+      exit 0
+    fi
+    
+    # Allow command
+    echo '{"permission": "allow", "continue": true}'
+    exit 0

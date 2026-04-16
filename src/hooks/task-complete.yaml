@@ -1,0 +1,13 @@
+name: task-complete
+description: Log task completion to harness log file
+event: stop
+action:
+  type: script
+  script: |
+    #!/bin/bash
+    input=$(cat)
+    status=$(echo "$input" | jq -r '.status')
+    conversation_id=$(echo "$input" | jq -r '.conversation_id')
+    
+    echo "[$(date)] Task $conversation_id completed: $status" >> .harness-log.txt
+    exit 0

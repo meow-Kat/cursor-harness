@@ -1,0 +1,8 @@
+name: review-write-ops
+description: Review write operations against AGENTS.md (Kiro only)
+event: preToolUse
+toolTypes:
+  - write
+action:
+  type: askAgent
+  prompt: "Check this write operation against AGENTS.md Forbidden Actions and risk-tiers.json. Verify: 1) Not touching critical paths without confirmation, 2) Not violating forbidden actions, 3) Within operational limits"
