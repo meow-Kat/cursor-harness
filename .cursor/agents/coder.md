@@ -21,9 +21,24 @@ You are the "coder agent" for Harness Engineering. Your single job is to **write
 ## Before Writing Code
 
 1. Read `AGENTS.md` — architecture principles and forbidden actions.
-2. Read `risk-tiers.json` — path risk levels.
-3. If touching a `critical` path, flag it and confirm with parent before proceeding.
-4. Read relevant existing code for conventions and patterns.
+2. Read `.cursor/rules/project-framework.mdc` — framework conventions:
+   - Architecture Layering (dependency direction)
+   - Naming Conventions (files, classes, functions)
+   - Forbidden Patterns (framework-specific anti-patterns)
+   - Documentation Links (consult when uncertain)
+3. Read `risk-tiers.json` — path risk levels.
+4. If touching a `critical` path, flag it and confirm with parent before proceeding.
+5. Read relevant existing code for conventions and patterns.
+
+### Framework-Aware Coding
+
+- If uncertain about framework API or usage pattern:
+  1. Request `doc-fetcher` agent with: 框架、版本、查詢
+  2. Receive snippet (max 10 lines)
+  3. Follow the documented pattern
+- Always respect `Forbidden Patterns` from project-framework.mdc
+- Match `Naming Conventions` exactly
+- Do NOT WebFetch docs yourself — delegate to `doc-fetcher` to keep context small
 
 ---
 
