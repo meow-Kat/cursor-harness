@@ -7,7 +7,7 @@
       "guidance": "Warn user and require explicit confirmation before any modification."
     },
     "high": {
-      "paths": ["api/", "payments/", "src/core/", ".cursor/rules/"],
+      "paths": ["api/", "payments/", "src/core/", "src/codex/", ".cursor/rules/", ".codex/", ".agents/"],
       "guidance": "Note risk level in response. Proceed if task intent is clear."
     },
     "medium": {

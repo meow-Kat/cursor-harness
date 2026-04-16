@@ -1,0 +1,38 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node -e 'process.stdout.write(JSON.stringify({systemMessage:\"Read AGENTS.md, ANALYSIS_MEM.md, and ANALYSIS_SCRATCH.md before acting.\",hookSpecificOutput:{hookEventName:\"SessionStart\",additionalContext:\"Prefer editing source files in src/ and shared project files. Treat .cursor/, .kiro/, .codex/, and .agents/ as generated outputs.\"}}))'",
+            "statusMessage": "Loading project contract"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node -e 'const fs=require(\"fs\");const input=JSON.parse(fs.readFileSync(0,\"utf8\")||\"{}\");const cmd=input.tool_input&&input.tool_input.command?input.tool_input.command:\"\";if(/git\\s+reset\\s+--hard/.test(cmd)||/rm\\s+-rf(\\s|$)/.test(cmd)){process.stdout.write(JSON.stringify({hookSpecificOutput:{hookEventName:\"PreToolUse\",permissionDecision:\"deny\",permissionDecisionReason:\"Destructive Bash command blocked by Codex hook.\"}}));}'",
+            "statusMessage": "Checking Bash command"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node -e 'process.stdout.write(JSON.stringify({hookSpecificOutput:{hookEventName:\"UserPromptSubmit\",additionalContext:\"When changing IDE behavior, edit src/ or shared project files. Do not manually edit compiled .cursor/, .kiro/, .codex/, or .agents/ outputs.\"}}))'"
+          }
+        ]
+      }
+    ]
+  }
+}

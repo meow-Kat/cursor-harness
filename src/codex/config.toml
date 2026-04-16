@@ -1,0 +1,8 @@
+# Project-scoped Codex defaults.
+# Loaded only when the repository is marked as trusted in Codex.
+
+model = "gpt-5.4"
+approval_policy = "on-request"
+sandbox_mode = "workspace-write"
+web_search = "cached"
+personality = "friendly"

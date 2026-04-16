@@ -1,7 +1,7 @@
 {
   "name": "harness-compiler",
   "version": "1.0.0",
-  "description": "Harness Engineering compiler for Cursor and Kiro",
+  "description": "Harness Engineering compiler for Cursor, Kiro, and Codex",
   "main": "harness-compiler.js",
   "bin": {
     "harness-compile": "./harness-compiler.js"
@@ -10,6 +10,7 @@
     "compile": "node harness-compiler.js compile",
     "compile:cursor": "node harness-compiler.js compile --target=cursor",
     "compile:kiro": "node harness-compiler.js compile --target=kiro",
+    "compile:codex": "node harness-compiler.js compile --target=codex",
     "validate": "node harness-compiler.js validate"
   },
   "dependencies": {
@@ -19,6 +20,7 @@
     "harness-engineering",
     "cursor",
     "kiro",
+    "codex",
     "ai-coding"
   ],
   "author": "",

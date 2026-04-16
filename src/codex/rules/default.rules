@@ -1,0 +1,58 @@
+# Default Codex exec-policy rules for this repository.
+# These rules only govern commands that Codex wants to run outside the sandbox.
+
+# Prompt before compiling generated IDE/Codex outputs outside the sandbox.
+prefix_rule(
+    pattern = ["node", "tools/harness-compiler.js", "compile"],
+    decision = "prompt",
+    justification = "Compiling can write generated outputs such as .cursor, .kiro, .codex, and .agents.",
+    match = [
+        "node tools/harness-compiler.js compile --source",
+        "node tools/harness-compiler.js compile --source --target=codex",
+    ],
+    not_match = [
+        "node tools/harness-compiler.js validate --source",
+    ],
+)
+
+# Prompt before publishing changes to a remote.
+prefix_rule(
+    pattern = ["git", "push"],
+    decision = "prompt",
+    justification = "Pushing changes should remain an explicit approval step.",
+    match = [
+        "git push",
+        "git push origin codex/feature",
+    ],
+    not_match = [
+        "git status",
+    ],
+)
+
+# Block destructive hard resets outside the sandbox.
+prefix_rule(
+    pattern = ["git", "reset", "--hard"],
+    decision = "forbidden",
+    justification = "Destructive history rewrites are forbidden. Use patch-based rollback or explicit file restoration instead.",
+    match = [
+        "git reset --hard",
+        "git reset --hard HEAD~1",
+    ],
+    not_match = [
+        "git reset --soft HEAD~1",
+    ],
+)
+
+# Block broad recursive deletion outside the sandbox.
+prefix_rule(
+    pattern = ["rm", "-rf"],
+    decision = "forbidden",
+    justification = "Recursive deletion is forbidden by default. Use targeted edits or ask for explicit approval first.",
+    match = [
+        "rm -rf build",
+        "rm -rf /tmp/example",
+    ],
+    not_match = [
+        "rm file.txt",
+    ],
+)
