@@ -7,7 +7,7 @@ description: Provide the universal AGENTS.md template for any project. Use when 
 
 ## When to Use
 
-- The `agents-md-protocol` rule detects that `AGENTS.md` does not exist in the repo root.
+- The `core-protocol.mdc` rule (or equivalent project rule) expects `AGENTS.md` in the repo root but it is missing.
 - An existing `AGENTS.md` is corrupted or has unrecognizable structure.
 - Bootstrapping Harness Engineering in a brand-new repository.
 

@@ -37,12 +37,51 @@ This repo is an attempt to solve that by turning the repo itself into a control 
 |------|---------|
 | `AGENTS.md` | Project contract for AI agents |
 | `risk-tiers.json` | Risk classification by path |
-| `.cursor/rules/` | Cursor-specific enforcement rules |
-| `.cursor/skills/` | Reusable templates and setup helpers |
-| `.cursor/agents/` | Specialized subagents for coding, testing, review, memory, and audits |
+| `.cursor/rules/` | Cursor rules (see [Cursor rules](#cursor-rules) below) |
+| `.cursor/skills/` | Agent skills / setup templates (see [Skills](#skills) below) |
+| `.cursor/agents/` | Specialized subagents (see [Subagents](#subagents) below) |
 | `examples/php/` | PHP architecture guardrail examples |
 | `examples/github-actions/` | CI workflow examples |
-| `docs/` | Deeper docs and localized documentation |
+| `docs/` | Deeper docs, user guides, and analysis memory |
+
+### Cursor rules
+
+These files live in `.cursor/rules/`:
+
+| File | Role |
+|------|------|
+| `core-protocol.mdc` | Task start order (`AGENTS.md` → memory → blank check), delegation map, operational limits, post-task checks (`alwaysApply`) |
+| `php-guardrails-protocol.mdc` | PHP guardrail awareness when editing PHP (`**/*.php`) |
+| `ci-workflows-protocol.mdc` | GitHub Actions workflow awareness under `.github/` |
+
+On first memory init, `memory-templates` can also generate `.cursor/rules/project-framework.mdc` (framework-specific conventions for your app stack).
+
+### Skills
+
+Repo skills under `.cursor/skills/` (each folder contains `SKILL.md`):
+
+| Skill | Use |
+|-------|-----|
+| `agents-md-template` | Bootstrap or repair root `AGENTS.md` |
+| `memory-templates` | Create `docs/ANALYSIS_MEM.md` / `docs/ANALYSIS_SCRATCH.md` and run framework detection |
+| `php-guardrails-template` | Generate deptrac / phparkitect / PHPStan / PHPCS configs |
+| `ci-workflows-template` | Generate risk-contract / PHP guardrails / doc-freshness workflows |
+| `sdd-bootstrap` | Spec-driven bootstrap for empty or skeleton projects |
+
+### Subagents
+
+Specialized prompts under `.cursor/agents/`:
+
+| Subagent | Focus |
+|----------|--------|
+| `coder.md` | Implementation and structured change summaries |
+| `tester.md` | Tests, coverage, quality gates |
+| `reviewer.md` | Read-only review / LLM judge style feedback |
+| `memory-keeper.md` | Writes and maintains analysis memory tiers |
+| `observability.md` | Harness health, drift, and risk exposure audits |
+| `project-analyzer.md` | Repo-wide architecture and onboarding summaries |
+| `doc-fetcher.md` | External documentation retrieval |
+| `sdd-designer.md` | Spec-driven design after SDD requirements |
 
 ## How it works in Cursor
 
@@ -76,12 +115,14 @@ Start with these files first:
 
 - `AGENTS.md`
 - `risk-tiers.json`
-- `.cursor/rules/analysis-memory-protocol.mdc`
+- `.cursor/rules/core-protocol.mdc`
 
 Then add the examples you actually need:
 
 - PHP guardrails from `examples/php/`
 - CI workflows from `examples/github-actions/`
+
+For day-to-day Cursor behavior, `core-protocol.mdc` covers loading `AGENTS.md`, memory sync, delegation, and post-task checks; use it together with `docs/ANALYSIS_MEM.md` and `docs/ANALYSIS_SCRATCH.md` after memory is initialized.
 
 ## Project philosophy
 
@@ -100,7 +141,7 @@ That means:
 ## Further reading
 
 - English user guide: `docs/USER_GUIDE.md`
-- Traditional Chinese user guide: `docs/README_zh-TW.md`
+- Traditional Chinese user guide: `docs/USER_GUIDE_zh-TW.md`
 - Analysis memory: `docs/ANALYSIS_MEM.md`
 - Working scratchpad: `docs/ANALYSIS_SCRATCH.md`
 - Harness Engineering reference: [Wisely Chen — architecture overview](https://ai-coding.wiselychen.com/harness-engineering-architecture-overview-ai-code-production-guardrails/)

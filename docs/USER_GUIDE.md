@@ -31,20 +31,22 @@ Harness Engineering = building a system that controls and amplifies what agents 
 
 | File | Type | Purpose |
 |------|------|---------|
-| `.cursor/rules/agents-md-protocol.mdc` | Rule | Load `AGENTS.md`, enforce forbidden actions, apply risk awareness, and respect instruction priority |
-| `.cursor/rules/analysis-memory-protocol.mdc` | Rule | Handle wake-and-sync, memory taxonomy, feedback loop, progressive summary, and freshness checks |
+| `.cursor/rules/core-protocol.mdc` | Rule (alwaysApply) | Task lifecycle: load `AGENTS.md` / `.agents.local.md`, memory wake-and-sync, delegation map, operational limits, post-task checks |
 | `.cursor/rules/php-guardrails-protocol.mdc` | Rule | Detect PHP projects and recommend or enforce PHP guardrails |
 | `.cursor/rules/ci-workflows-protocol.mdc` | Rule | Detect missing CI workflows and guide setup |
 | `.cursor/skills/agents-md-template/SKILL.md` | Skill | Create `AGENTS.md` when missing |
-| `.cursor/skills/memory-templates/SKILL.md` | Skill | Create memory files when missing |
+| `.cursor/skills/memory-templates/SKILL.md` | Skill | Create memory files when missing; framework detection can generate `project-framework.mdc` |
 | `.cursor/skills/php-guardrails-template/SKILL.md` | Skill | Create PHP guardrail configs when missing |
 | `.cursor/skills/ci-workflows-template/SKILL.md` | Skill | Create CI workflow templates when missing |
+| `.cursor/skills/sdd-bootstrap/SKILL.md` | Skill | SDD-style requirements gathering for empty or skeleton projects; hand off to `sdd-designer` |
 | `.cursor/agents/coder.md` | Subagent | Focused code-writing agent with self-verification and circuit breaker rules |
 | `.cursor/agents/tester.md` | Subagent | Focused testing agent for Layer 1 validation |
 | `.cursor/agents/reviewer.md` | Subagent | Read-only review agent for Layer 4 judgment |
 | `.cursor/agents/memory-keeper.md` | Subagent | Memory management agent for taxonomy, freshness, garbage collection, and audit trail |
 | `.cursor/agents/observability.md` | Subagent | Read-only system auditor for compliance, drift, and operations health |
 | `.cursor/agents/project-analyzer.md` | Subagent | Repo structure, risk, and technical-debt scanner |
+| `.cursor/agents/doc-fetcher.md` | Subagent | Fetch external documentation for grounded implementation |
+| `.cursor/agents/sdd-designer.md` | Subagent | Spec and design output after SDD requirements (pairs with `sdd-bootstrap`) |
 
 ## Architecture design
 
@@ -67,11 +69,10 @@ AGENTS.md            -> repo-level contract
 ### Task execution order
 
 ```text
-1. agents-md-protocol loads AGENTS.md and .agents.local.md
-2. analysis-memory-protocol loads MEM and SCRATCH
-3. the task is executed
-4. SCRATCH is updated progressively during work
-5. stable outcomes are promoted into MEM at the end
+1. core-protocol.mdc loads AGENTS.md, .agents.local.md, MEM, and SCRATCH
+2. the task is executed
+3. SCRATCH is updated progressively during work
+4. stable outcomes are promoted into MEM at the end
 ```
 
 ### Memory taxonomy
@@ -168,7 +169,7 @@ To use them, copy the workflows you need into your own `.github/workflows/` dire
 
 ## Subagent architecture
 
-The framework uses 6 specialized subagents, each with a single job:
+The framework uses 8 specialized subagents, each with a single job:
 
 ```text
 User
@@ -177,6 +178,8 @@ User
 Main Agent
   |
   |-- project-analyzer
+  |-- doc-fetcher
+  |-- sdd-designer
   |-- coder
   |-- tester
   |-- reviewer
@@ -194,6 +197,8 @@ Main Agent
 | `reviewer` | codex | readonly | Review changes as an LLM judge |
 | `memory-keeper` | sonnet | read-write | Maintain memory, freshness, GC, and audit trail |
 | `observability` | opus | readonly | Audit compliance, drift, and operations health |
+| `doc-fetcher` | (orchestrator-chosen) | readonly | External documentation retrieval |
+| `sdd-designer` | (orchestrator-chosen) | read-write | Spec and design after SDD requirements |
 
 ### Typical workflow
 
@@ -218,7 +223,7 @@ Main Agent
 |-----------|------------|-------------|
 | **Self-Verification Checklist** | coder, tester | Output must pass a self-check before being returned |
 | **Circuit Breaker** | coder, tester | Stops repeated failure or runaway scope |
-| **Context Exhaustion Warning** | all 6 agents | Encourages concise outputs to avoid context degradation |
+| **Context Exhaustion Warning** | all 8 agents | Encourages concise outputs to avoid context degradation |
 | **Operations Health Audit** | observability | Audits limits, loop risks, and governance maturity |
 | **Audit Trail** | memory-keeper | Records major decisions with context and risk |
 
