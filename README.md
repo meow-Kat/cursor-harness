@@ -281,7 +281,7 @@ The compiler automatically handles:
 - **Path reference updates**: Adjusts file paths for each IDE
 - **IDE-specific features**: Adds IDE-specific metadata
 
-See `README_COMPILER.md` for detailed compiler documentation.
+See `tools/README.md` for compiler documentation.
 
 ### Alternative: harness.yaml Workflow
 

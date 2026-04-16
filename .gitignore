@@ -18,3 +18,5 @@ package-lock.json
 
 # Local overrides
 .agents.local.md
+
+docs/

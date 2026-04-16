@@ -1,6 +1,27 @@
 # Harness Engineering Compiler
 
-Compile unified harness configuration into IDE-specific implementations for Cursor and Kiro.
+Compile unified source files or harness configuration into IDE-specific implementations for Cursor and Kiro.
+
+## Two Workflows
+
+### Source-Based Workflow (Recommended)
+
+Edit files in `src/` directory and compile to IDE-specific formats.
+
+**Advantages**:
+- Single source of truth in `src/`
+- Easy to version control
+- Clear separation of source and compiled output
+- IDE-agnostic source format
+
+### harness.yaml Workflow (Alternative)
+
+Use a single `harness.yaml` file to define all configurations.
+
+**Advantages**:
+- All configuration in one file
+- Easy to share and review
+- Good for simple setups
 
 ## Installation
 
@@ -11,32 +32,119 @@ npm install
 
 ## Usage
 
-### Compile for both IDEs
+### Source-Based Workflow
 
 ```bash
-node harness-compiler.js compile
-# or
-npm run compile
+# Compile from src/ directory (recommended)
+node harness-compiler.js compile --source
+
+# Compile for specific IDE
+node harness-compiler.js compile --source --target=cursor
+node harness-compiler.js compile --source --target=kiro
+
+# Validate source files
+node harness-compiler.js validate --source
 ```
 
-### Compile for specific IDE
+### harness.yaml Workflow
 
 ```bash
-# Cursor only
+# Compile for both IDEs
+node harness-compiler.js compile
+npm run compile
+
+# Compile for specific IDE
 node harness-compiler.js compile --target=cursor
 npm run compile:cursor
 
-# Kiro only
 node harness-compiler.js compile --target=kiro
 npm run compile:kiro
-```
 
-### Validate configuration
-
-```bash
+# Validate configuration
 node harness-compiler.js validate
 npm run validate
 ```
+
+## Source-Based Workflow Details
+
+### Directory Structure
+
+```
+src/
+├── rules/          # Unified rule definitions
+│   ├── core-protocol.md
+│   ├── php-guardrails.md
+│   └── ci-workflows.md
+├── agents/         # Agent prompts
+│   ├── coder.md
+│   ├── tester.md
+│   └── reviewer.md
+├── skills/         # Reusable skills/templates
+│   ├── agents-md-template/
+│   │   └── SKILL.md
+│   └── mcp-setup/
+│       └── SKILL.md
+└── hooks/          # Event automation (YAML format)
+    ├── check-forbidden-actions.yaml
+    ├── review-write-ops.yaml
+    └── format-on-save.yaml
+```
+
+### Source File Format
+
+**Rules** (`src/rules/*.md`):
+```yaml
+---
+name: core-protocol
+description: Core agent protocol
+inclusion: always  # or: fileMatch, manual
+fileMatchPattern: "**/*.php"  # optional, for fileMatch
+---
+
+# Rule content in markdown
+```
+
+**Hooks** (`src/hooks/*.yaml`):
+```yaml
+name: check-forbidden-actions
+description: Block dangerous commands
+event: beforeShellExecution
+action:
+  type: script
+  script: |
+    #!/bin/bash
+    # Shell script
+```
+
+**Agents** (`src/agents/*.md`):
+```yaml
+---
+name: coder
+model: claude-4.6-sonnet
+description: Coding agent
+---
+
+Agent prompt content
+```
+
+**Skills** (`src/skills/*/SKILL.md`):
+```yaml
+---
+name: agents-md-template
+description: Generate AGENTS.md
+---
+
+Skill content
+```
+
+### Compilation Output
+
+| Source | Cursor Output | Kiro Output |
+|--------|---------------|-------------|
+| `src/rules/*.md` | `.cursor/rules/*.mdc` | `.kiro/steering/*.md` |
+| `src/agents/*.md` | `.cursor/agents/*.md` | `.kiro/agents/*.md` |
+| `src/skills/*/SKILL.md` | `.cursor/skills/*/SKILL.md` | `.kiro/skills/*/SKILL.md` |
+| `src/hooks/*.yaml` | `.cursor/hooks/*.sh` + `hooks.json` | `.kiro/hooks/*.json` |
 
 ## Configuration Format
 
